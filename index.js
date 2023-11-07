@@ -3,7 +3,7 @@ const cors = require("cors");
 const app = express();
 const moment = require("moment-timezone");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -63,6 +63,26 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/api/v1/featured-blogs", async (req, res) => {
+      const documents = await blogCollection.find({}).toArray();
+
+      // Sort the documents based on the length of the "longDescription" property
+      documents.sort(
+        (a, b) => b.longDescription.length - a.longDescription.length
+      );
+      const result = documents.slice(0, 10);
+      console.log(result);
+      res.send(result);
+    });
+    app.get("/api/v1/blog-details/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await blogCollection.findOne(query);
+      console.log(id, result);
+      res.send(result);
+      console.log("Blog hit")
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
@@ -81,4 +101,3 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
-

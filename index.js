@@ -42,6 +42,7 @@ async function run() {
       const result = await blogCollection
         .find()
         .sort({ addedTime: -1 })
+        .limit(6)
         .toArray();
       console.log(result);
       res.send(result);
@@ -78,7 +79,6 @@ async function run() {
       const result = await blogCollection.findOne(query);
       console.log(id, result);
       res.send(result);
-      console.log("Blog hit");
     });
 
     app.post("/api/v1/add-blog-comment", async (req, res) => {

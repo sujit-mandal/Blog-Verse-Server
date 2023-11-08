@@ -22,18 +22,17 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
-    // Send a ping to confirm a successful connection
-
     const blogCollection = client.db("blogDB").collection("blogCollection");
+    const commentCollection = client
+      .db("blogDB")
+      .collection("commentCollection");
+    const wishlist = client.db("blogDB").collection("wishlistCollection");
 
     app.post("/api/v1/create-new-blog", async (req, res) => {
+      const blog = req.body;
       const currentUTC = moment().utc();
-
       // Convert the UTC time to Bangladeshi time (BST, UTC+6)
       const addedTimeBD = currentUTC.tz("Asia/Dhaka");
-      const blog = req.body;
       blog.addedTime = addedTimeBD._d;
       const result = await blogCollection.insertOne(blog);
       res.send(result);
@@ -43,7 +42,6 @@ async function run() {
       const result = await blogCollection
         .find()
         .sort({ addedTime: -1 })
-        .limit(6)
         .toArray();
       console.log(result);
       res.send(result);
@@ -76,13 +74,70 @@ async function run() {
     });
     app.get("/api/v1/blog-details/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)}
+      const query = { _id: new ObjectId(id) };
       const result = await blogCollection.findOne(query);
       console.log(id, result);
       res.send(result);
-      console.log("Blog hit")
+      console.log("Blog hit");
     });
 
+    app.post("/api/v1/add-blog-comment", async (req, res) => {
+      const blogComment = req.body;
+      const result = await commentCollection.insertOne(blogComment);
+      res.send(result);
+    });
+
+    app.get("/api/v1/comment/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { postID: id };
+      const result = await commentCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/api/v1/delete-comment/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await commentCollection.deleteOne(query);
+      res.send(result);
+    });
+    app.post("/api/v1/create-wishlist", async (req, res) => {
+      const wish = req.body;
+      const result = await wishlist.insertOne(wish);
+      res.send(result);
+    });
+
+    app.get("/api/v1/wishlist", async (req, res) => {
+      const email = req.query.email;
+      const query = { userMail: email };
+      const result = await wishlist.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/api/v1/trending-blogs", async (req, res) => {
+      const result = await blogCollection.find().skip(5).limit(10).toArray();
+      res.send(result);
+    });
+
+    app.delete("/api/v1/remove-wishlist/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlist.deleteOne(query);
+      res.send(result);
+    });
+
+    app.get("/api/v1/banner-blogs", async (req, res) => {
+      const result = await blogCollection.find().limit(5).toArray();
+      res.send(result);
+    });
+
+    app.get("/api/v1/blog/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await blogCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"

@@ -130,6 +130,35 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/api/v1/blog/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await blogCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.put("/api/v1/update-blog/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedBlog = req.body;
+      const blog = {
+        $set: {
+          title: updatedBlog.title,
+          blogImage: updatedBlog.blogImage,
+          category: updatedBlog.category,
+          shortDescription: updatedBlog.shortDescription,
+          longDescription: updatedBlog.longDescription,
+          userName: updatedBlog.displayName,
+          userMail: updatedBlog.email,
+          userPhoto: updatedBlog.photoURL,
+        },
+      };
+      const result = await blogCollection.updateOne(filter, blog, options);
+      res.send(result);
+    });
+    
+    
     
 
     

@@ -48,19 +48,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/api/v1/all-blogs", async (req, res) => {
-      const searchQuery = req.query.q;
-      const category = req.query.category;
-      const query = category ? { category } : {};
-      if (searchQuery) {
-        const regex = new RegExp(searchQuery, "i");
-        query.title = { $regex: regex };
-      }
-      const result = await blogCollection.find(query).toArray();
-      console.log(searchQuery);
-      console.log(query);
-      res.send(result);
-    });
+    
 
     app.get("/api/v1/featured-blogs", async (req, res) => {
       const documents = await blogCollection.find({}).toArray();

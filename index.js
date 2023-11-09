@@ -1,13 +1,21 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const moment = require("moment-timezone");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w7djr5h.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -20,6 +28,19 @@ const client = new MongoClient(uri, {
   },
 });
 
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 async function run() {
   try {
     const blogCollection = client.db("blogDB").collection("blogCollection");
@@ -27,7 +48,31 @@ async function run() {
       .db("blogDB")
       .collection("commentCollection");
     const wishlist = client.db("blogDB").collection("wishlistCollection");
+    // auth related api
 
+    app.post("/api/v1/jwt", async (req, res) => {
+      const user = req.body;
+      console.log("User for token", user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+
+    app.post("/api/v1/logout", async (req, res) => {
+      const user = req.body;
+      console.log("Logging Out", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
+    // services related api
     app.post("/api/v1/create-new-blog", async (req, res) => {
       const blog = req.body;
       const currentUTC = moment().utc();
@@ -70,14 +115,13 @@ async function run() {
         (a, b) => b.longDescription.length - a.longDescription.length
       );
       const result = documents.slice(0, 10);
-      console.log(result);
       res.send(result);
     });
-    app.get("/api/v1/blog-details/:id", async (req, res) => {
+    app.get("/api/v1/blog-details/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
+      console.log("Cookies", req.cookies);
       const query = { _id: new ObjectId(id) };
       const result = await blogCollection.findOne(query);
-      console.log(id, result);
       res.send(result);
     });
 
@@ -106,9 +150,16 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/api/v1/wishlist", async (req, res) => {
+    app.get("/api/v1/wishlist", verifyToken, async (req, res) => {
       const email = req.query.email;
-      const query = { userMail: email };
+      if (req.user.email !== req.query.email) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      let query = {};
+      if (req.query?.email) {
+        query = { userMail: email };
+      }
+
       const result = await wishlist.find(query).toArray();
       res.send(result);
     });
@@ -157,11 +208,7 @@ async function run() {
       const result = await blogCollection.updateOne(filter, blog, options);
       res.send(result);
     });
-    
-    
-    
 
-    
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"

@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "https://blog-verse-auth-715a2.web.app"],
     credentials: true,
   })
 );
@@ -188,7 +188,7 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/api/v1/update-blog/:id", async (req, res) => {
+    app.put("/api/v1/update-blog/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
